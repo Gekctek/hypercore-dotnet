@@ -1,39 +1,60 @@
 using System;
+using System.Linq;
+using System.Security.Cryptography;
 
 namespace HY
 {
     public abstract class Node
     {
-        public Signature Signature { get; }
+        public HashDigest HashDigest { get; }
 
-        protected Node(Signature signature)
+        protected Node(HashDigest signature)
         {
-            Signature = signature ?? throw new ArgumentNullException(nameof(signature));
+            HashDigest = signature ?? throw new ArgumentNullException(nameof(signature));
         }
     }
 
     public class BranchNode : Node
     {
-        public Node Right { get; }
         public Node Left { get; }
+        public Node? Right { get; }
 
-        public BranchNode(Signature signature, Node right, Node left) : base(signature)
+        private BranchNode(HashDigest hashDigest, Node left, Node? right) : base(hashDigest)
         {
             Right = right;
             Left = left;
         }
 
-        public BranchNode Add(LeafNode node)
+        internal static BranchNode Create(Node left, Node? right)
         {
-            throw new NotImplementedException();
+            byte[] value;
+            if (right != null)
+            {
+                value = left.HashDigest.Value
+                    .Concat(right.HashDigest.Value)
+                    .ToArray();
+            }
+            else
+            {
+                value = left.HashDigest;
+            }
+            HashDigest digest = HashUtil.ComputeSHA256Digest(value);
+            return new BranchNode(digest, left, right);
         }
     }
 
     public class LeafNode : Node
     {
-        public LeafNode(Signature signature) : base(signature)
+        public byte[] Value { get; }
+        private LeafNode(HashDigest hashDigest, byte[] value) : base(hashDigest)
         {
+            Value = value;
+        }
 
+        public static LeafNode Create(byte[] value)
+        {
+            HashDigest digest = HashUtil.ComputeSHA256Digest(value);
+            return new LeafNode(digest, value);
         }
     }
 }
